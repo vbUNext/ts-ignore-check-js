@@ -19,7 +19,7 @@ $ npm install -g ts-ignore-check-js
 $ ts-ignore-check-js COMMAND
 running command...
 $ ts-ignore-check-js (-v|--version|version)
-ts-ignore-check-js/0.0.5 darwin-x64 node-v10.15.3
+ts-ignore-check-js/0.0.6 darwin-x64 node-v10.15.3
 $ ts-ignore-check-js --help [COMMAND]
 USAGE
   $ ts-ignore-check-js COMMAND
