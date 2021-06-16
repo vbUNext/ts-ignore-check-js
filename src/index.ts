@@ -1,6 +1,28 @@
+/* eslint-disable @typescript-eslint/ban-ts-ignore */
+/* eslint-disable unicorn/catch-error-name */
 import {Command, flags} from '@oclif/command'
+import execa from 'execa'
+import ora from 'ora'
+import {mapSeries} from 'bluebird'
+import path from 'path'
+import pkgDir from 'pkg-dir'
+import {oc} from 'ts-optchain.macro'
+// @ts-ignore
+import {readFile, writeFile} from 'fs-extra'
 
-class TsIgnoreCheckJs extends Command {
+export interface File {
+  count: number;
+  lines: string[];
+  path: string;
+}
+
+export interface Files {
+  [key: string]: File;
+}
+
+const rootPath = pkgDir.sync(process.cwd()) || process.cwd()
+
+export class TsIgnoreCheckJs extends Command {
   static description = 'describe the command here';
 
   static flags = {
@@ -16,14 +38,50 @@ class TsIgnoreCheckJs extends Command {
   static args = [{name: 'file'}];
 
   async run() {
-    const {args, flags} = this.parse(TsIgnoreCheckJs)
+    // const {args, flags} = this.parse(TsIgnoreCheckJs)
 
-    const name = flags.name ?? 'world'
-    this.log(`hello ${name} from ./src/index.ts`)
-    if (args.file && flags.force) {
-      this.log(`you input --force and --file: ${args.file}`)
-    }
+    const spinner = ora()
+    spinner.start('finding errors')
+    const files: Files = {}
+    const lines = (
+      await execa('tsc', ['--noEmit'], {cwd: rootPath}).catch(err => {
+        if (err.stdout) return err
+        throw err
+      })
+    ).stdout.split('\n')
+    spinner.start('fixing errors')
+    let count = 0
+    await mapSeries(lines, async (line: string) => {
+      const [, filePath, lineNumber] = line.match(
+        /(.+\.tsx?)\((\d+),\d+\): error TS\d{4}: /
+      ) || [null, null, null]
+      if (!filePath) return
+      if (!(filePath in files)) {
+        files[filePath] = {
+          count: 0,
+          lines: (await readFile(filePath)).toString().split('\n'),
+          path: path.resolve(process.cwd(), filePath),
+        }
+      }
+      ++count
+      const file = files[filePath]
+      const padding: number = oc(
+        file.lines[Number(lineNumber) + file.count - 1].match(/^ */)
+      )([''])[0].length
+      file.lines.splice(
+        Number(lineNumber) + file.count - 1,
+        0,
+        `${new Array(padding).fill(' ').join('')}// @ts-ignore`
+      )
+      ++file.count
+    })
+    await Promise.all(
+      Object.values(files).map(async (file: File) => {
+        await writeFile(file.path, file.lines.join('\n'))
+      })
+    )
+    spinner.succeed(`fixed ${count} errors`)
   }
 }
 
-export = TsIgnoreCheckJs;
+// export = TsIgnoreCheckJs;
