@@ -1,15 +1,10 @@
-/* eslint-disable no-console */
-/* eslint-disable @typescript-eslint/ban-ts-ignore */
-/* eslint-disable unicorn/catch-error-name */
 import {Command, flags} from '@oclif/command'
 import execa from 'execa'
 import ora from 'ora'
 import {mapSeries} from 'bluebird'
 import path from 'path'
 import pkgDir from 'pkg-dir'
-import {oc} from 'ts-optchain.macro'
-// @ts-ignore
-import {readFile, writeFile} from 'fs-extra'
+import fs from 'fs-extra'
 
 interface File {
   count: number;
@@ -47,34 +42,33 @@ class TsIgnoreCheckJs extends Command {
     const lines = (
       await execa('tsc', ['--noEmit', '--allowJs', '--checkJs'], {
         cwd: rootPath,
+      // eslint-disable-next-line unicorn/catch-error-name
       }).catch(err => {
-        console.log('🚀 ~ err', err)
         if (err.stdout) return err
         throw err
       })
     ).stdout.split('\n')
-    console.log('🚀 ~  ~ lines', lines)
+
     spinner.start('fixing errors')
     let count = 0
     await mapSeries(lines, async (line: string) => {
       const [, filePath, lineNumber] = line.match(
-        /(.+\.((tsx?)|(js)))\((\d+),\d+\): error TS\d{4}: /
+        /(.+\.jsx?)\((\d+),\d+\): error TS\d{4}: /
       ) || [null, null, null]
       if (!filePath) return
-      console.log('🚀 ~  ~ filePath', filePath)
-      console.log('🚀 ~  ~ lineNumber', lineNumber)
+
       if (!(filePath in files)) {
         files[filePath] = {
           count: 0,
-          lines: (await readFile(filePath)).toString().split('\n'),
+          lines: (await fs.readFile(filePath)).toString().split('\n'),
           path: path.resolve(process.cwd(), filePath),
         }
       }
       ++count
+
       const file = files[filePath]
-      const padding: number = oc(
-        file.lines[Number(lineNumber) + file.count - 1].match(/^ */)
-      )([''])[0].length
+
+      const padding = file.lines[Number(lineNumber) + file.count - 1].match(/^ */)?.[0]?.length ?? 0
       file.lines.splice(
         Number(lineNumber) + file.count - 1,
         0,
@@ -84,7 +78,7 @@ class TsIgnoreCheckJs extends Command {
     })
     await Promise.all(
       Object.values(files).map(async (file: File) => {
-        await writeFile(file.path, file.lines.join('\n'))
+        await fs.writeFile(file.path, file.lines.join('\n'))
       })
     )
     spinner.succeed(`fixed ${count} errors`)
@@ -92,3 +86,4 @@ class TsIgnoreCheckJs extends Command {
 }
 
 export = TsIgnoreCheckJs;
+
