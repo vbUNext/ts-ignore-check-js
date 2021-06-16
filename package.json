@@ -1,7 +1,7 @@
 {
   "name": "ts-ignore-check-js",
   "description": "ignores ts-error in ts and js files",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "author": "VB @vbUNext",
   "bin": {
     "ts-ignore-check-js": "./bin/run"
