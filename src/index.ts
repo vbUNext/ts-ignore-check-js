@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/ban-ts-ignore */
 /* eslint-disable unicorn/catch-error-name */
 import {Command, flags} from '@oclif/command'
@@ -47,10 +48,12 @@ class TsIgnoreCheckJs extends Command {
       await execa('tsc', ['--noEmit', '--allowJs', '--checkJs'], {
         cwd: rootPath,
       }).catch(err => {
+        console.log('🚀 ~ err', err)
         if (err.stdout) return err
         throw err
       })
     ).stdout.split('\n')
+    console.log('🚀 ~  ~ lines', lines)
     spinner.start('fixing errors')
     let count = 0
     await mapSeries(lines, async (line: string) => {
@@ -58,6 +61,8 @@ class TsIgnoreCheckJs extends Command {
         /(.+\.((tsx?)|(js)))\((\d+),\d+\): error TS\d{4}: /
       ) || [null, null, null]
       if (!filePath) return
+      console.log('🚀 ~  ~ filePath', filePath)
+      console.log('🚀 ~  ~ lineNumber', lineNumber)
       if (!(filePath in files)) {
         files[filePath] = {
           count: 0,
