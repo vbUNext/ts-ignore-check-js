@@ -10,19 +10,19 @@ import {oc} from 'ts-optchain.macro'
 // @ts-ignore
 import {readFile, writeFile} from 'fs-extra'
 
-export interface File {
+interface File {
   count: number;
   lines: string[];
   path: string;
 }
 
-export interface Files {
+interface Files {
   [key: string]: File;
 }
 
 const rootPath = pkgDir.sync(process.cwd()) || process.cwd()
 
-export class TsIgnoreCheckJs extends Command {
+class TsIgnoreCheckJs extends Command {
   static description = 'describe the command here';
 
   static flags = {
@@ -44,7 +44,9 @@ export class TsIgnoreCheckJs extends Command {
     spinner.start('finding errors')
     const files: Files = {}
     const lines = (
-      await execa('tsc', ['--noEmit'], {cwd: rootPath}).catch(err => {
+      await execa('tsc', ['--noEmit', '--allowJs', '--checkJs'], {
+        cwd: rootPath,
+      }).catch(err => {
         if (err.stdout) return err
         throw err
       })
@@ -53,7 +55,7 @@ export class TsIgnoreCheckJs extends Command {
     let count = 0
     await mapSeries(lines, async (line: string) => {
       const [, filePath, lineNumber] = line.match(
-        /(.+\.tsx?)\((\d+),\d+\): error TS\d{4}: /
+        /(.+\.((tsx?)|(js)))\((\d+),\d+\): error TS\d{4}: /
       ) || [null, null, null]
       if (!filePath) return
       if (!(filePath in files)) {
@@ -84,4 +86,4 @@ export class TsIgnoreCheckJs extends Command {
   }
 }
 
-// export = TsIgnoreCheckJs;
+export = TsIgnoreCheckJs;
